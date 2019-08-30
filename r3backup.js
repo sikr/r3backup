@@ -5,7 +5,8 @@
   fdisk -l
 */
 
-var fs = require("fs");
+let fs       = require("fs");
+let spawn    = require("child_process").spawn;
 let oDevices = [{uuid: "F875-D9D5"},  // 0 = SSD
                 // {uuid: "2C2D-459E"},  // others = SD cards
                 {uuid: "A045-F3C1"},  // 32 GB,  SD 1
@@ -18,7 +19,6 @@ let sSourceUuid = "";
 let sDestinationUuid = "";
 
 function getDisksByUUID(callback) {
-  var spawn   = require("child_process").spawn;
   var ls      = spawn("ls", ["/dev/disk/by-uuid/"]);
   var oDisks  = [];
 
@@ -52,7 +52,47 @@ getDisksByUUID(function(oDisks) {
         }
       }
     }
+    runRsync();
   }
+
+  function runRsync() {
+    if (sDestinationUuid.length && sSourceUuid.length) {
+      var sCommand = "rsync";
+      var oParams = [
+        "-rtuvh",
+        "--progress",
+        "--exclude='*.LRV'",
+        "--exclude='*.THM'",
+        "--stats",
+        "/media/" + sSourceUuid + "/",
+        "/media/" + sDestinationUuid + "/F05A-3BA2"
+      ];
+      
+      var rsync   = spawn(sCommand, oParams);
+
+      rsync.stdout.on("data", function (data) {
+        var sBuffer = data.toString();
+        console.log(sBuffer);
+        // var oLines = sBuffer.split(/\n/);
+        // for (var i = 0; i < oLines.length; i++) {
+        //   if (oLines[i] !== "") {
+        //     oDisks.push({"uuid": oLines[i]});
+        //   }
+        // }
+      });
+      rsync.stderr.on("data", function (data) {
+        console.error("\n\n**** ERROR executing rsync: %s", data);
+      });
+      rsync.on("close", function (code) {
+        // return;
+      });
+    }
+  }
+
+// sudo rsync -rtuvhn --progress --exclude="*.LRV" --exclude="*.THM" --stats /media/F05A-3BA2/ /media/F875-D9D5/F05A-3BA2
+
+  
+
   // for (var i = 0; i < oDisks.length; i++) {
   //   console.log("stat: " + "/media/" + oDisks[i]);
   //   fs.stat("/media/" + oDisks[i], function(err, stats) {
